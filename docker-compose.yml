@@ -1,0 +1,72 @@
+version: "3.7"
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.1
+    container_name: es01
+    hostname: es01
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms500m -Xmx500m
+    ports:
+      - 9200:9200
+    networks:
+      - trino-ranger-demo
+    volumes:
+    - ranger-es-data:/usr/share/elasticsearch/data
+  postgresql:
+    image: postgres:13
+    container_name: psql01
+    hostname: psql01
+    environment:
+      POSTGRES_PASSWORD: "postgres"
+    ports:
+      - 5432:5432
+    networks:
+      - trino-ranger-demo
+    volumes:
+    - ranger-pg-data:/var/lib/postgresql/data
+  ranger-admin:
+    image: aakashnand/trino-ranger-demo:v4.0
+    #build: ranger-admin
+    container_name: ranger-admin
+    hostname: ranger-admin
+    entrypoint: /root/ranger-admin/docker-entrypoint.sh
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 6G
+        reservations:
+          cpus: '1'
+          memory: 5G
+    ports:
+      - 6080:6080
+    networks:
+      - trino-ranger-demo
+    volumes:
+      - ./ranger-admin:/root/ranger-admin
+    platform: linux/amd64
+  trino:
+    image: trinodb/trino:436
+    hostname: localhost-trino
+    user: root
+    container_name: localhost-trino
+    entrypoint: /root/docker-entrypoint.sh
+    networks:
+      - trino-ranger-demo
+    volumes:
+      - ./trino/install.properties:/root/install.properties
+      - ./trino/docker-entrypoint.sh:/root/docker-entrypoint.sh
+      - ./trino/config/access-control.properties:/etc/trino/access-control.properties
+      - ./trino/config/ranger-trino-security.xml:/etc/trino/ranger-trino-security.xml
+      - ./trino/config/ranger-policymgr-ssl.xml:/etc/trino/ranger-policymgr-ssl.xml
+
+    ports:
+      - 8080:8080
+networks:
+  trino-ranger-demo:
+    driver: bridge
+volumes:
+  ranger-es-data:
+  ranger-pg-data:

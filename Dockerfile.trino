@@ -1,0 +1,15 @@
+# 1️⃣ Build stage: use Ubuntu so we can install gzip & tar cleanly
+FROM ubuntu:22.04 AS plugin-builder
+RUN apt-get update \
+ && apt-get install -y gzip tar \
+ && rm -rf /var/lib/apt/lists/*
+COPY ranger-3.0.0-SNAPSHOT-trino-plugin-436.tar.gz /opt/
+RUN mkdir /plugin \
+ && tar -xzf /opt/ranger-3.0.0-SNAPSHOT-trino-plugin-436.tar.gz -C /plugin
+
+# 2️⃣ Final stage: start from the official Trino image
+FROM trinodb/trino:latest
+USER root
+# Copy the already-unpacked plugin directory into Trino’s plugins folder
+COPY --from=plugin-builder /plugin /usr/lib/trino/plugin/trino-ranger-plugin
+USER trino
